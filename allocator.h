@@ -7,7 +7,7 @@
 #define MEM_CHUNK 10 // Количество выделяемой памяти за раз в штуках
 
 template<typename T>
-struct otus_allocator {
+struct simple_allocator {
     using value_type        = T;
     using pointer           = T*;
     using const_pointer     = const T*;
@@ -20,11 +20,11 @@ private:
     std::vector<pointer> _memPool;
 
 public:
-    otus_allocator() : _counter(0){}
+    simple_allocator() : _counter(0){}
 
-    template<typename U>
+    template<class U>
     struct rebind {
-        using other = otus_allocator<U>;
+        using other = simple_allocator<U>;
     };
 
     pointer allocate(std::size_t n)
@@ -68,7 +68,7 @@ public:
         }
     }
 
-    template<typename U, class ...Args>
+    template<class U, class ...Args>
     void construct(U *p, Args&& ... args) {
 //        std::cout << __PRETTY_FUNCTION__ << std::endl;
         new(p) U(std::forward<Args>(args)...);
