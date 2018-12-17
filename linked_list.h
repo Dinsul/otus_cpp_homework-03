@@ -3,7 +3,7 @@
 #include <memory>
 
 template <class T, class Al = std::allocator<T> >
-class OtusList
+class LinkedList
 {
 public:
     using value_type        = T;
@@ -13,42 +13,66 @@ public:
     using const_reference   = const T&;
     using size_type         = size_t;
 
-private:
-    struct OL_Node
+protected:
+    struct Node
     {
-        OL_Node() : next(nullptr), value(nullptr) {}
+        Al     *_al_ptr;
+        Node   *next;
+        pointer value;
 
-        OL_Node* next;
-        pointer  value;
+        Node(Al *al_ptr) : _al_ptr(al_ptr), next(nullptr), value(nullptr){}
+
+        Node(Al *al_ptr, Node &&other) noexcept : _al_ptr(al_ptr)
+        {
+            std::swap(this->next,  other.next);
+            std::swap(this->value, other.value);
+        }
+
+        Node(Al *al_ptr, const Node &other) : _al_ptr(al_ptr)
+        {
+            this->next  = other.next;
+            this->value = other.value;
+        }
+
+        Node(Al *al_ptr, const_reference newVal) : _al_ptr(al_ptr), next(nullptr)
+        {
+            value = _al_ptr->allocate(1);
+            _al_ptr->construct(value, newVal);
+        }
+
+        ~Node()
+        {
+            if (value)
+            {
+                _al_ptr->destroy(value);
+                _al_ptr->deallocate(value, 1);
+            }
+        }
     };
 
-    inline OL_Node* create_node(const_reference value)
-    {
-        OL_Node *newNode = new OL_Node();
-        newNode->value   = _allocator.allocate(1);
+    using NodeAl = typename Al::template rebind<Node>::other;
 
-        _allocator.construct(newNode->value, value);
+    template<class ...Args>
+    Node* create_node(Args&& ... args)
+    {
+        Node *newNode = _node_al.allocate(1);
+        _node_al.construct(newNode, &_allocator, std::forward<Args>(args)...);
 
         return newNode;
     }
 
-    inline OL_Node* create_node()
+    inline void deleteNode(Node *node)
     {
-        return new OL_Node();
+        _node_al.destroy(node);
+        _node_al.deallocate(node, 1);
     }
 
-    inline void deleteNode(OL_Node *node)
-    {
-        _allocator.destroy(node->value);
-        _allocator.deallocate(node->value, 1);
+    Al      _allocator;
+    NodeAl  _node_al;
 
-        delete node;
-    }
+    Node  *_tail;
+    Node  *_head;
 
-    OL_Node  *_tail;
-    OL_Node  *_head;
-
-    Al        _allocator;
     size_type _count;
 
 public:
@@ -57,7 +81,7 @@ public:
         iterator()
             : _node(nullptr) {}
 
-        explicit iterator(OL_Node* node)
+        explicit iterator(Node* node)
             : _node(node) {}
 
         reference operator* () const {
@@ -90,34 +114,54 @@ public:
             return _node != other._node;
         }
 
-        bool operator == (const OL_Node* node) const {
+        bool operator == (const Node* node) const {
             return _node == node;
         }
 
-        bool operator != (const OL_Node* node) const {
+        bool operator != (const Node* node) const {
             return _node != node;
         }
 
     private:
-        OL_Node* _node;
+        Node* _node;
     };
 
-    explicit OtusList(): _tail(create_node()), _head(_tail), _allocator(Al{}), _count(0) {}
+    explicit LinkedList() : _allocator(Al{}), _node_al(NodeAl{}), _tail(create_node()), _head(_tail), _count(0) {}
 
-    OtusList(const_reference value) : OtusList()
+
+//    LinkedList(LinkedList &other)
+//        : _allocator(other.allocator()), _node_al(other.node_al()),
+//          _tail(create_node(*(other.end()))),
+//          _head(create_node(*(other.end()))),
+//          _count(other.size())
+//    {}
+
+//    LinkedList(LinkedList &&other)
+//        : _allocator(other.allocator()), _node_al(other.node_al()),
+//          _tail(create_node(*(other.end()))),
+//          _head(create_node(*(other.begin()))),
+//          _count(other.size())
+//    {}
+
+    LinkedList(const_reference value) : LinkedList()
     {
         push_front(value);
     }
 
-    ~OtusList()
+    ~LinkedList()
     {
-        while (end() != _head->next)
+        while (end() != _head)
         {
-            OL_Node *toDelete = _head;
+            Node *toDelete = _head;
+
             _head = _head->next;
 
             deleteNode(toDelete);
         }
+
+        deleteNode(_tail);
+
+        std::cout << std::endl;
     }
 
     //    OtusList(T &&value);
@@ -148,9 +192,10 @@ public:
         return retVal;
     }
 
-    void push_front(const_reference value)
+    template<class ...Args>
+    void push_front(Args&& ... args)
     {
-        auto newNode  = create_node(value);
+        auto newNode  = create_node(std::forward<Args>(args)...);
 
         newNode->next = _head;
         _head         = newNode;
@@ -158,9 +203,10 @@ public:
         ++_count;
     }
 
-    void push_back(const_reference value)
+    template<class ...Args>
+    void push_back(Args&& ... args)
     {
-        auto newNode  = create_node(value);
+        auto newNode  = create_node(std::forward<Args>(args)...);
         auto back     = _head;
 
         while (end() != back->next) {
@@ -223,4 +269,20 @@ public:
     {
         return _count;
     }
+
+    Al allocator() const
+    {
+        return _allocator;
+    }
+
+    NodeAl node_al() const
+    {
+        return _node_al;
+    }
 };
+
+
+
+
+
+
