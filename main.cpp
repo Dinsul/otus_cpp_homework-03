@@ -49,6 +49,7 @@ int main(int, char *[]) {
 
     {
         std::cout << "\n>>> LinkedList whith standart allocator" << std::endl;
+
         LinkedList<int> list;
 
         for (int i = 0; i < 10; ++i)
@@ -61,7 +62,23 @@ int main(int, char *[]) {
             std::cout << val << " ";
         }
 
-        std::cout << std::endl;
+        std::cout << std::endl << "\n>>> Copy of LinkedList whith standart allocator" << std::endl;
+
+        LinkedList<int> list1{list};
+
+        for (auto val : list1)
+        {
+            std::cout << val << " ";
+        }
+
+        std::cout << std::endl << "\n>>> Moved LinkedList whith standart allocator" << std::endl;
+
+        LinkedList<int> list2{std::move(list)};
+
+        for (auto val : list2)
+        {
+            std::cout << val << " ";
+        }
     }
 
     {
@@ -80,6 +97,7 @@ int main(int, char *[]) {
 
         std::cout << std::endl;
     }
+
 
     return 0;
 }

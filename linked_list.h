@@ -16,38 +16,26 @@ public:
 protected:
     struct Node
     {
-        Al     *_al_ptr;
-        Node   *next;
-        pointer value;
+        Node      *next;
+        value_type value;
 
-        Node(Al *al_ptr) : _al_ptr(al_ptr), next(nullptr), value(nullptr){}
+        Node() : next(nullptr), value(value_type{}){}
 
-        Node(Al *al_ptr, Node &&other) noexcept : _al_ptr(al_ptr)
+        Node(Node &&other) noexcept
         {
-            std::swap(this->next,  other.next);
-            std::swap(this->value, other.value);
+            std::swap(this->next,    other.next);
+            std::swap(this->value,   other.value);
         }
 
-        Node(Al *al_ptr, const Node &other) : _al_ptr(al_ptr)
-        {
-            this->next  = other.next;
-            this->value = other.value;
-        }
+        Node(const Node &other) : next(other.next), value(other.value){}
 
-        Node(Al *al_ptr, const_reference newVal) : _al_ptr(al_ptr), next(nullptr)
+        Node(const_reference newVal) : next(nullptr)
         {
-            value = _al_ptr->allocate(1);
-            _al_ptr->construct(value, newVal);
+            value = newVal;
         }
 
         ~Node()
-        {
-            if (value)
-            {
-                _al_ptr->destroy(value);
-                _al_ptr->deallocate(value, 1);
-            }
-        }
+        {}
     };
 
     using NodeAl = typename Al::template rebind<Node>::other;
@@ -56,7 +44,7 @@ protected:
     Node* create_node(Args&& ... args)
     {
         Node *newNode = _node_al.allocate(1);
-        _node_al.construct(newNode, &_allocator, std::forward<Args>(args)...);
+        _node_al.construct(newNode, std::forward<Args>(args)...);
 
         return newNode;
     }
@@ -85,7 +73,7 @@ public:
             : _node(node) {}
 
         reference operator* () const {
-            return *(_node->value);
+            return _node->value;
         }
 
         pointer operator-> () const {
@@ -129,19 +117,30 @@ public:
     explicit LinkedList() : _allocator(Al{}), _node_al(NodeAl{}), _tail(create_node()), _head(_tail), _count(0) {}
 
 
-//    LinkedList(LinkedList &other)
-//        : _allocator(other.allocator()), _node_al(other.node_al()),
-//          _tail(create_node(*(other.end()))),
-//          _head(create_node(*(other.end()))),
-//          _count(other.size())
-//    {}
+    LinkedList(const LinkedList &other)
+        : _allocator(other.allocator()), _node_al(other.node_al())
+    {
+        _tail  = create_node(0);
+        _head  = _tail;
+        _count = 0;
 
-//    LinkedList(LinkedList &&other)
-//        : _allocator(other.allocator()), _node_al(other.node_al()),
-//          _tail(create_node(*(other.end()))),
-//          _head(create_node(*(other.begin()))),
-//          _count(other.size())
-//    {}
+        for (auto node : other)
+        {
+            this->push_back(node);
+        }
+    }
+
+    LinkedList(LinkedList &&other)
+        : _allocator(other.allocator()), _node_al(other.node_al())
+    {
+        _head  = other._head;
+        _tail  = other._tail;
+        _count = other._count;
+
+        other._head  = nullptr;
+        other._tail  = nullptr;
+        other._count = 0;
+    }
 
     LinkedList(const_reference value) : LinkedList()
     {
@@ -206,6 +205,11 @@ public:
     template<class ...Args>
     void push_back(Args&& ... args)
     {
+        if (_head == _tail)
+        {
+            push_front(std::forward<Args>(args)...);
+        }
+
         auto newNode  = create_node(std::forward<Args>(args)...);
         auto back     = _head;
 
