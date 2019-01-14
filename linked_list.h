@@ -209,18 +209,20 @@ public:
         {
             push_front(std::forward<Args>(args)...);
         }
+        else
+        {
+            auto newNode  = create_node(std::forward<Args>(args)...);
+            auto back     = _head;
 
-        auto newNode  = create_node(std::forward<Args>(args)...);
-        auto back     = _head;
+            while (end() != back->next) {
+                back = back->next;
+            }
 
-        while (end() != back->next) {
-            back = back->next;
+            newNode->next = back->next;
+            back->next    = newNode;
+
+            ++_count;
         }
-
-        newNode->next = back->next;
-        back->next    = newNode;
-
-        ++_count;
     }
 
     value_type pop_front(void)
